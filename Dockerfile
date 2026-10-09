@@ -47,6 +47,27 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ============================================================
 FROM amneziavpn/amneziawg-go:3.1.20260814@sha256:4450928744b051589bb3ba5cf6dd0cd8d7dc470b9432dc32d03d5ff5ede11b7a
 
+# ============================================================
+# OCI metadata.
+#
+# The build-stage ARGs above do not cross stage boundaries, so they are
+# re-declared here. SOURCE_URL defaults to this fork: without any labels an
+# image built as a thin layer on top of another Cascade image inherits that
+# image's metadata instead, and presents itself as a different repository —
+# which also decides which repository GitHub links the published package to.
+# CI overrides these through docker/metadata-action.
+# ============================================================
+ARG SOURCE_URL=https://github.com/smm959/cascade
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+
+LABEL org.opencontainers.image.source=$SOURCE_URL \
+      org.opencontainers.image.url=$SOURCE_URL \
+      org.opencontainers.image.title=cascade \
+      org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$GIT_COMMIT \
+      org.opencontainers.image.licenses=MIT
+
 # The official image checks the fork's platform-neutral release manifest.
 # Operators can override this value or set it to an empty string.
 
