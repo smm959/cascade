@@ -1,0 +1,326 @@
+<p align="center">
+  <img src="./assets/logo.svg" width="240" alt="Cascade" />
+</p>
+
+<p align="center">
+  <strong>Your own VPN router, managed from one browser tab.</strong><br/>
+  Self-hosted WireGuard &amp; AmneziaWG — tunnels, peers, policy routing, firewall, NAT and TLS,
+  in a single Go binary.
+</p>
+
+<p align="center">
+  <a href="https://github.com/alexnikon/cascade/actions/workflows/docker-publish.yml">
+    <img src="https://github.com/alexnikon/cascade/actions/workflows/docker-publish.yml/badge.svg" alt="Build" />
+  </a>
+  <img src="https://img.shields.io/badge/Go-1.23-blue" alt="Go 1.23" />
+  <img src="https://img.shields.io/badge/AmneziaWG-3.1-purple" alt="AmneziaWG 3.1" />
+</p>
+
+<p align="center">
+  <a href="docs/USER_MANUAL.md">📖 User Manual</a>
+</p>
+
+---
+
+<img width="1484" height="775" alt="image" src="https://github.com/user-attachments/assets/01be9f90-afc5-452c-ad5e-25bfa586ba2b" />
+
+> **AWG versions:** existing AWG 2.0 interfaces are preserved across upgrades; new interfaces
+> default to AWG 3.1. Userspace deployments use a pinned AWG 3.1 runtime, while kernel
+> deployments expose AWG 3.1 only when module major version 3 or newer is detected.
+>
+> ⚠️ **Kernel module mode:** re-sync the host module (`sudo bash deploy/switch-mode.sh --kernel`)
+> whenever you update the container, or interfaces will fail to start — see [Updating](#-updating).
+
+## ✨ What Cascade does
+
+A complete router control plane, not just a peer manager — every module below shares the same
+UI and the same REST API, served by one static Go binary with no Node.js, no npm and no runtime
+dependencies.
+
+| Module | |
+|--------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| 🔌 **Interfaces** | Multiple WireGuard / AmneziaWG tunnels, quick-create in one click, per-interface MSS clamping. Import any `.conf` as an uplink and use it as a PBR gateway without touching the main routing table |
+| 👥 **Peers** | Client and site-to-site (S2S) interconnect peers with QR codes, lifetime traffic stats, per-client bandwidth limiting and group membership |
+| 🌐 **Routing** | Static routes and policy-based routing — send traffic per-source, per-destination or **per-domain** through different gateways. Dual-stack: `ip rule` and `ip -6 rule` built from one rule, with per-family fallback and blackhole |
+| 🔀 **NAT** | Outbound MASQUERADE / SNAT with alias support, plus Port Forwarding (DNAT) with per-interface scoping and optional source NAT |
+| 🛡️ **Firewall** | Filter rules (ACCEPT / DROP / REJECT) and PBR via gateway, matching on addresses, ports, interfaces or domain aliases — IPv4 and IPv6 from a single rule |
+| 📋 **Aliases** | 8 types: host, network, ipset, client-group, group, port, port-group and **domain**. Domain aliases resolve exact DNS names in the background and learn wildcard suffixes (e.g. `*.googlevideo.com`) through optional per-interface Cascade DNS into TTL-aware kernel ipsets; client groups are ipset-backed and auto-update on peer changes |
+| 📡 **Gateways** | Live ICMP ping and HTTP/S monitoring with automatic failover and gateway groups. Optional IPv6 next hop and ICMPv6 probe target for dual-stack links |
+| 🎛️ **AWG 2.0/3.1 Templates** | Versioned AmneziaWG 2.0 and 3.1 templates with a built-in generator — header protection, padding/rekey/timeout controls, CPS profiles and isolated defaults per protocol |
+| 🔐 **Auth** | Multi-user accounts, TOTP 2FA (Google Authenticator), long-lived API tokens |
+| 🔒 **TLS** | HTTPS by default via Caddy + acme.sh — works on a bare IP through Let's Encrypt shortlived certs, or on your own domain |
+| 🎭 **Decoy site** | Caddy serves a fake streaming site on `/` while the admin UI hides behind a secret path |
+| 🖥️ **Multi-Server** | Manage multiple Cascade routers from one UI — switch servers in the sidebar, proxy all API calls transparently, self-signed cert support |
+| 📊 **Monitoring** | Real-time per-interface traffic metrics, gateway status history (stacked bar chart), Diagnostics page with per-period history |
+| ⚡ **Speed Test** | iperf3 between any two managed servers — Auto / Tunnel / Internet mode, S2S tunnel autodetect, result history |
+| 🚦 **Rate Limits** | Per-client-group bandwidth limiting via tc HTB (kbps down/up enforced per IP) |
+| 🧙 **Wizards** | Guided setup for Simple Client VPN, Cascade via WireGuard uplink, and Cascade ↔ Cascade S2S — interfaces, aliases, gateways, PBR rules and NAT created in one flow |
+
+## 📋 Requirements
+- Ubuntu 22.04, 24.04, Debian 13 (other distros: not tested)
+---
+
+## 🚀 Quick Install
+
+### Userspace mode — recommended
+Works on **any VPS**: no custom kernel, no reboot, no deadlocks.
+```bash
+curl -fsSL https://github.com/alexnikon/cascade/releases/latest/download/install.sh \
+  | sudo bash -s -- --yes
+```
+
+> `--yes` picks all defaults: **userspace mode**, auto-detected public IP, random admin path.
+
+### Kernel module mode
+Maximum throughput, but the AmneziaWG kernel module has **[known deadlock issues](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module/issues/146)**
+that can freeze tunnel operations. Only recommended if you need peak performance and can tolerate occasional interface restarts.
+
+> ⚠️ Re-sync the kernel module (`/opt/cascade/deploy/switch-mode.sh --kernel`) every time you
+> update Cascade — the module does not update itself. Details: [Updating](#-updating).
+
+```bash
+# Interactive setup — choose [2] Kernel module at Step 2
+curl -fsSL https://github.com/alexnikon/cascade/releases/latest/download/install.sh \
+  | sudo bash
+```
+
+### Switch mode on a running system
+
+```bash
+cd /opt/cascade/deploy
+sudo ./switch-mode.sh --userspace   # → amneziawg-go (stable)
+sudo ./switch-mode.sh --kernel      # → kernel module (fast)
+```
+
+The script handles kernel module install/unload, blacklisting, and container restart automatically.
+
+---
+
+## 🚀 Deployment Options
+
+### Option A — Router only (advanced users)
+Just the Cascade container. The web UI listens on **localhost only** — no public exposure, no TLS,
+and network security, authentication and access control are yours to handle.
+
+```bash
+# Run the userspace installation from Quick Install above, then:
+sudo docker compose -f /opt/cascade/deploy/caddy/docker-compose.yml down
+# UI available at http://127.0.0.1:8888/
+```
+
+Use this if you already have a reverse proxy, firewall, or VPN-only access in place.
+Step-by-step guide: [docs/DEPLOY.md](docs/DEPLOY.md)
+
+### Option B — Full stack (recommended)
+
+One command sets up everything — AmneziaWG, TLS certificate, Caddy reverse proxy with a decoy
+streaming site, and a hidden admin path. The router is never exposed directly to the internet.
+
+Use the userspace or kernel-module installation command from Quick Install above.
+| Step | What happens |
+|------|-------------|
+| 0 | 1 GB swap (provides memory headroom on small VPS hosts) |
+| 1 | Kernel upgrade to HWE 6.x (Ubuntu 22.04 only) — reboot, then re-run |
+| 2 | AmneziaWG run mode — choose Userspace (recommended) or Kernel module |
+| 2b | Docker network mode — choose Host (default) or Bridge (port range for Docker publish) |
+| 3 | Docker CE install |
+| 4 | sysctl: `ip_forward`, UDP buffers |
+| 4b | TCP tuning: BBR congestion control, FQ scheduler, `rp_filter` |
+| 5a | Generate decoy video via ffmpeg (60 s noise — looks like a real stream) |
+| 5 | Pull the release image pinned by its registry digest |
+| 6 | Collect config interactively (IP, secret path, email) |
+| 7 | Start Cascade (localhost only) |
+| 8 | Issue TLS certificate via acme.sh (Let's Encrypt) |
+| 9 | Start Caddy (HTTPS + decoy site + hidden admin path) |
+| 10 | Verify: health-check Cascade + Caddy, print summary |
+
+At the end you get:
+```
+Admin URL: https://YOUR_IP/<secret-path>/
+```
+
+Open it — first-run shows a **Create First User** form (no auth required until the first account exists).
+After creating your account, enable **TOTP 2FA** in Settings → Users for an extra layer of protection.
+
+> **Re-run safe:** `setup.sh` is idempotent — safe to run again after a reboot or update.
+> On re-run, Step 2 asks `Change run mode? [y/N]` — press `y` to switch between modes.
+
+> **Testing TLS without rate limits:** use `--staging` to issue an untrusted certificate from the
+> [Let's Encrypt staging CA](https://letsencrypt.org/docs/staging-environment/). Switch to production
+> later by setting `ACME_STAGING=0` in `/opt/cascade/.env` and re-running `setup.sh`.
+> ```bash
+> cd /opt/cascade/deploy
+> sudo ./setup.sh --staging
+> sudo ./setup.sh --yes --staging
+> ```
+
+---
+
+## ⚙️ AWG Run Modes
+| | Userspace (`amneziawg-go`) | Kernel module |
+|---|---|---|
+| Performance | ~70% of kernel | Maximum |
+| Stability | ✅ Stable | ⚠️ Known deadlocks |
+| Kernel module required | ❌ No | ✅ Yes |
+| Works on any VPS | ✅ Yes | Depends on kernel |
+| Reboot after install | ❌ No | Sometimes |
+The current mode is shown as a badge in the sidebar of the web UI (blue = userspace, green = kernel).
+The Docker network mode is shown as a separate badge (gray = HOST, amber = BRIDGE, red = NONE).
+---
+
+## ⚙️ Configuration
+Configuration is collected interactively by `setup.sh` and saved to `/opt/cascade/.env`.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CADDY_IMAGE` | `caddy:alpine` | Caddy image reference; may also be pinned to a digest |
+| `WG_HOST` | auto-detected | Public IP or domain of the server |
+| `ADMIN_PATH` | random hex | Secret path for admin UI (e.g. `/a1b2c3d4.../`) |
+| `PORT` | `8888` | Internal port for Cascade (Caddy proxies to this) |
+| `BIND_ADDR` | `127.0.0.1` | Bind address for Cascade (use `127.0.0.1` behind Caddy) |
+| `ACME_EMAIL` | optional | Email for Let's Encrypt notifications |
+| `ACME_STAGING` | `0` | `1` = use LE staging CA (untrusted cert, no rate limits — for testing) |
+| `AWG_USERSPACE_IMPL` | `amneziawg-go` | `amneziawg-go` or `kernel` |
+| `NETWORK_MODE` | `host` | `host` or `bridge` — Docker network mode |
+| `BRIDGE_PORT_RANGE` | *(bridge only)* | Published UDP port range for WireGuard in bridge mode (e.g. `51831-65535`) |
+| `METRICS_ENABLED` | `false` | Initial native Prometheus endpoint state |
+| `METRICS_CONNECTED_PEER_THRESHOLD` | `180s` | Initial maximum handshake age considered connected |
+| `METRICS_TOKEN` | unset | Initial optional bearer token for the metrics endpoint |
+| `METRICS_HISTORY_ENABLED` | `true` | Initial local metrics-history state |
+Additional settings (WireGuard defaults, DNS, etc.) are configurable in the Web UI under **Settings**.
+
+## 🔒 Security Model
+- Admin UI is served only via `https://HOST/<ADMIN_PATH>/` — plain `https://HOST/` shows a decoy site
+- HTTPS with HTTP/3 (QUIC) via Caddy
+- TLS certificates: shortlived (6-day) for bare IPs, standard 90-day for domains
+- Session cookie: `HttpOnly`, `Secure`, `SameSite=Strict`
+- bcrypt password hashing (cost 12)
+- TOTP 2FA — Google Authenticator / Authy (enable per-user in Settings → Users)
+- API tokens — long-lived bearer tokens for scripts; bypass TOTP; revocable
+- Input validation on all API endpoints
+
+Full threat model: [docs/SECURITY.md](docs/SECURITY.md)
+
+## 🔄 Updating
+> ⚠️ **Running in Kernel module mode?** The Docker image tracks the AmneziaWG
+> protocol's `:latest` line, but your host's kernel module does not update on
+> its own. This mainly affects installs from **before the AmneziaWG 3.0
+> protocol jump (2026-07-30)** — the module stayed on the pre-3.0 line while
+> the image moved to 3.0.x, so `awg setconf`'s netlink format no longer
+> matches what the old module expects. If they drift apart, interfaces will
+> fail to start with `Unable to modify interface: Invalid argument`. Always
+> re-sync the kernel module alongside a container update:
+> ```bash
+> sudo bash deploy/switch-mode.sh --kernel
+> ```
+> Userspace mode is unaffected — it doesn't depend on a host kernel module.
+
+Change the exact release tag in `/opt/cascade/docker-compose.yml`, then apply it:
+
+```bash
+cd /opt/cascade
+sudo docker compose pull
+sudo docker compose up -d
+curl -fsS http://127.0.0.1:8888/api/health
+```
+
+To roll back, restore the previous tag and repeat the same commands. Runtime `.env`,
+data, certificates, and Caddy state remain outside the Cascade container.
+
+## 📱 Compatible VPN Clients
+
+> ⚠️ **Standard WireGuard clients do NOT work with AmneziaWG 2.0 or 3.1 interfaces.**
+> WireGuard 1.0 interfaces work with standard clients normally.
+| Platform | App |
+|----------|-----|
+| Android | [Amnezia VPN](https://play.google.com/store/apps/details?id=org.amnezia.vpn) · [AmneziaWG](https://play.google.com/store/apps/details?id=org.amnezia.awg) |
+| iOS / macOS | [Amnezia VPN](https://apps.apple.com/app/amneziavpn/id1600529900) · [AmneziaWG](https://apps.apple.com/app/amneziawg/id6478942365) |
+| Windows | [Amnezia VPN](https://github.com/amnezia-vpn/amnezia-client/releases) · [AmneziaWG](https://github.com/amnezia-vpn/amneziawg-windows-client/releases) |
+| Linux | [amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools) · [Amnezia VPN](https://github.com/amnezia-vpn/amnezia-client/releases) |
+
+## 🛠️ Troubleshooting
+
+**Check container status:**
+```bash
+docker logs cascade
+cd /opt/cascade/deploy/caddy && docker compose logs
+```
+
+**Check WireGuard interfaces:**
+```bash
+docker exec cascade awg show
+docker exec cascade wg show
+```
+
+**Check AWG run mode:**
+```bash
+docker exec cascade env | grep WG_QUICK
+# WG_QUICK_USERSPACE_IMPLEMENTATION=amneziawg-go  → userspace
+# (empty or not present)                          → kernel module
+```
+
+**Check firewall / NAT:**
+```bash
+docker exec cascade iptables-nft -t nat -L -n -v
+docker exec cascade ip rule show
+```
+
+**Re-run setup (e.g. after reboot or cert renewal):**
+```bash
+cd /opt/cascade/deploy
+sudo ./setup.sh
+```
+
+## 🔌 REST API
+Everything the web UI does, your scripts can do too — the UI is just a client of this API.
+```bash
+# Authenticate
+curl -c cookies.txt -X POST http://127.0.0.1:8888/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"yourpassword"}'
+
+# List interfaces
+curl -b cookies.txt http://127.0.0.1:8888/api/tunnel-interfaces
+
+# Create a peer
+curl -b cookies.txt -X POST http://127.0.0.1:8888/api/tunnel-interfaces/wg10/peers \
+  -H "Content-Type: application/json" \
+  -d '{"name":"laptop"}'
+```
+
+Use it to automate peer provisioning, integrate with your own dashboards, or build custom clients.
+Full reference: [docs/API.md](docs/API.md)
+
+## 📈 Prometheus
+
+Cascade has an optional native Prometheus endpoint backed by the same cached
+runtime state used by its UI and API. Administrators can enable and configure
+it in **Settings → Metrics**, then scrape `http://SERVER:9351/metrics`.
+Environment variables provide first-run bootstrap values only. See the
+[Prometheus monitoring guide](docs/PROMETHEUS.md) for security, metric names,
+multi-server configuration, Grafana dashboard import, and migration from
+`awgexporter`. The ready-to-import dashboard is
+[`grafana/cascade-dashboard.json`](grafana/cascade-dashboard.json).
+
+## 📖 Documentation
+- [Artifact-only deployment](docs/ARTIFACT_DEPLOYMENT.md)
+- [Deploy guide](docs/DEPLOY.md)
+- [API reference](docs/API.md)
+- [Security model](docs/SECURITY.md)
+- [Prometheus monitoring](docs/PROMETHEUS.md)
+## 🏗️ Stack
+| Layer | Technology |
+|-------|------------|
+| Backend | Go 1.23, Fiber v2 |
+| Frontend | Vue 2, Tailwind CSS (embedded in binary) |
+| Database | SQLite (`modernc.org/sqlite`, CGO-free) |
+| Reverse proxy | Caddy 2 (HTTP/3 + QUIC) |
+| VPN | AmneziaWG 2.0 / AmneziaWG 3.1 |
+---
+## 🙏 Credits
+- Inspired by [wg-easy](https://github.com/wg-easy/wg-easy)
+- [AmneziaVPN](https://github.com/amnezia-vpn) for the AmneziaWG protocol
+- [Vadim-Khristenko/AmneziaWG-Architect](https://github.com/Vadim-Khristenko/AmneziaWG-Architect) — math and code for AWG 2.0 obfuscation profile generation (CPS signatures, H-ranges, browser fingerprint packet sizing)
+---
+
+## License
+Cascade is distributed under the [MIT License](LICENSE).
