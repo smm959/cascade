@@ -21,10 +21,13 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 BUNDLE_DIR="$STAGE_DIR/cascade"
 mkdir -p "$BUNDLE_DIR/deploy/caddy" "$BUNDLE_DIR/deploy/lib" "$OUTPUT_DIR"
 
-sed "s|ghcr.io/alexnikon/cascade:[0-9][0-9A-Za-z.-]*|ghcr.io/alexnikon/cascade:${IMAGE_TAG}|" \
+# The bundle ships no source tree, so drop the local `build: .` fallback:
+# installed servers always pull the published image.
+sed -e "s|ghcr.io/smm959/cascade:[0-9][0-9A-Za-z.-]*|ghcr.io/smm959/cascade:${IMAGE_TAG}|" \
+  -e '/^    build: \.$/d' \
   "$REPO_DIR/docker-compose.yml" > "$BUNDLE_DIR/docker-compose.yml"
 chmod 0644 "$BUNDLE_DIR/docker-compose.yml"
-sed "s|ghcr.io/alexnikon/cascade:[0-9][0-9A-Za-z.-]*|ghcr.io/alexnikon/cascade:${IMAGE_TAG}|" \
+sed "s|ghcr.io/smm959/cascade:[0-9][0-9A-Za-z.-]*|ghcr.io/smm959/cascade:${IMAGE_TAG}|" \
   "$REPO_DIR/deploy/docker-compose.bridge.yml.example" > "$BUNDLE_DIR/deploy/docker-compose.bridge.yml.example"
 chmod 0644 "$BUNDLE_DIR/deploy/docker-compose.bridge.yml.example"
 install -m 0755 "$REPO_DIR/deploy/setup.sh" "$BUNDLE_DIR/deploy/setup.sh"

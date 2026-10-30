@@ -59,7 +59,7 @@ Internet
 
 | Container | Image | Listen |
 |-----------|-------|--------|
-| `cascade` | exact release tag `ghcr.io/alexnikon/cascade:X.Y.Z` | `127.0.0.1:8888` (HTTP, internal only) |
+| `cascade` | exact release tag `ghcr.io/smm959/cascade:X.Y.Z` | `127.0.0.1:8888` (HTTP, internal only) |
 | `cascade-caddy` | `caddy:alpine` by default | `:80`, `:443` (HTTPS/HTTP3, public) |
 
 Cascade is **not reachable directly from the internet** — only through Caddy.

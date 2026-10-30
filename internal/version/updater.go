@@ -35,8 +35,8 @@ type UpdateStatus struct {
 var (
 	mu                sync.RWMutex
 	status            = UpdateStatus{UpdateStatus: UpdateStatusUnknown}
-	latestReleaseURL  = "https://api.github.com/repos/alexnikon/cascade/releases/latest"
-	compareReleaseURL = "https://api.github.com/repos/alexnikon/cascade/compare/"
+	latestReleaseURL  = "https://api.github.com/repos/smm959/cascade/releases/latest"
+	compareReleaseURL = "https://api.github.com/repos/smm959/cascade/compare/"
 	updateHTTPClient  = http.DefaultClient
 	nowUTC            = func() time.Time { return time.Now().UTC() }
 	startOnce         sync.Once
