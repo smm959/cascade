@@ -43,8 +43,12 @@ grep -q '^cascade/deploy/setup.sh$' <<< "$CONTENTS"
 grep -q '^cascade/deploy/lib/install-dependencies.sh$' <<< "$CONTENTS"
 grep -q '^cascade/deploy/lib/kernel-module.sh$' <<< "$CONTENTS"
 grep -q '^cascade/deploy/caddy/Caddyfile$' <<< "$CONTENTS"
-tar -xOf "$ARCHIVE" cascade/docker-compose.yml | grep -q 'image: ghcr.io/alexnikon/cascade:1.2.3'
-tar -xOf "$ARCHIVE" cascade/deploy/docker-compose.bridge.yml.example | grep -q 'image: ghcr.io/alexnikon/cascade:1.2.3'
+tar -xOf "$ARCHIVE" cascade/docker-compose.yml | grep -q 'image: ghcr.io/smm959/cascade:1.2.3'
+tar -xOf "$ARCHIVE" cascade/deploy/docker-compose.bridge.yml.example | grep -q 'image: ghcr.io/smm959/cascade:1.2.3'
+if tar -xOf "$ARCHIVE" cascade/docker-compose.yml | grep -Eq '^[[:space:]]+build:'; then
+  echo "Bundled Compose still builds from source." >&2
+  exit 1
+fi
 if tar -xOf "$ARCHIVE" cascade/docker-compose.yml | grep -q 'CASCADE_IMAGE'; then
   echo "Host Compose still uses CASCADE_IMAGE." >&2
   exit 1

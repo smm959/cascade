@@ -53,7 +53,7 @@ CASCADE_TEST_DIST="$DIST_DIR" CASCADE_TEST_SETUP_CALL="$TMP_DIR/setup-call" \
   --version v2.0.0 --install-dir "$RUNTIME_DIR" --yes
 
 grep -q "$RUNTIME_DIR/deploy/setup.sh --yes" "$TMP_DIR/setup-call"
-grep -q 'image: ghcr.io/alexnikon/cascade:2.0.0' "$RUNTIME_DIR/docker-compose.yml"
+grep -q 'image: ghcr.io/smm959/cascade:2.0.0' "$RUNTIME_DIR/docker-compose.yml"
 [[ ! -e "$RUNTIME_DIR/release-manifest.json" ]]
 [[ ! -e "$RUNTIME_DIR/.releases" ]]
 [[ ! -e "$RUNTIME_DIR/deploy/update.sh" ]]
@@ -63,7 +63,7 @@ printf 'ADMIN_PATH=test\n' > "$RUNTIME_DIR/.env"
 mkdir -p "$RUNTIME_DIR/data"
 printf 'database-placeholder\n' > "$RUNTIME_DIR/data/cascade.db"
 sed -i.bak 's|cascade:2\.0\.0|cascade:2.0.1|' "$RUNTIME_DIR/docker-compose.yml"
-grep -q 'image: ghcr.io/alexnikon/cascade:2.0.1' "$RUNTIME_DIR/docker-compose.yml"
+grep -q 'image: ghcr.io/smm959/cascade:2.0.1' "$RUNTIME_DIR/docker-compose.yml"
 grep -q '^ADMIN_PATH=test$' "$RUNTIME_DIR/.env"
 grep -q '^database-placeholder$' "$RUNTIME_DIR/data/cascade.db"
 rm "$RUNTIME_DIR/docker-compose.yml.bak"

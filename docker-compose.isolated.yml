@@ -29,9 +29,10 @@
 
 services:
   cascade:
-    # To update Cascade, change this exact release tag, then run:
-    # docker compose pull && docker compose up -d
-    image: ghcr.io/alexnikon/cascade:0.9.10
+    # Image of this fork (smm959/cascade). If it cannot be pulled,
+    # Compose builds it from this checkout (see build: below).
+    # To update: git pull && docker compose up -d --build
+    image: ghcr.io/smm959/cascade:0.10.0
     build:
       context: .
       dockerfile: Dockerfile
