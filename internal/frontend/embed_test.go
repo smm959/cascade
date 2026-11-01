@@ -1526,3 +1526,38 @@ func TestFrontendDomainAliasUI(t *testing.T) {
 		t.Error("firewall rule alias selectors no longer use the shared address-alias filter")
 	}
 }
+
+// The Simple VPN success screen links to client apps that can open its QR
+// code, and AWG interfaces get AmneziaWG apps rather than stock WireGuard.
+func TestFrontendWizardSuccessLinksClientApps(t *testing.T) {
+	indexContent, err := renderedIndex(t)
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	index := string(indexContent)
+	for _, expected := range []string{
+		`v-for="app in wizardClientApps()"`,
+		`:href="wizardClientAppsMoreUrl()"`,
+		`target="_blank" rel="noopener noreferrer"`,
+		`$t("wiz.clientAppsTitle")`,
+		`$t("wiz.clientAppsAwgNote")`,
+	} {
+		if !strings.Contains(index, expected) {
+			t.Errorf("index.html does not contain %q", expected)
+		}
+	}
+
+	app := readFrontendJavaScript(t)
+	for _, expected := range []string{
+		"wizardClientOS()",
+		"https://github.com/amnezia-vpn/amneziawg-windows-client/releases/latest",
+		"https://apps.apple.com/app/amneziawg/id6478942365",
+		"https://play.google.com/store/apps/details?id=org.amnezia.awg",
+		"https://play.google.com/store/apps/details?id=com.wireguard.android",
+		"https://apps.apple.com/app/wireguard/id1441195209",
+	} {
+		if !strings.Contains(app, expected) {
+			t.Errorf("frontend JavaScript does not contain %q", expected)
+		}
+	}
+}

@@ -2,6 +2,36 @@
  * Wizards feature methods for the Vue 2 application.
  * Methods intentionally operate on the Vue instance passed as this.
  */
+
+// Official client downloads shown on the Simple VPN success screen.
+// AmneziaWG links follow https://docs.amnezia.org/documentation/amnezia-wg/
+const WIZARD_CLIENT_OS = [
+  { os: 'windows', label: 'Windows' },
+  { os: 'macos', label: 'macOS' },
+  { os: 'linux', label: 'Linux' },
+  { os: 'android', label: 'Android' },
+  { os: 'ios', label: 'iOS' },
+];
+
+const WIZARD_CLIENT_APPS = {
+  amneziawg: {
+    windows: 'https://github.com/amnezia-vpn/amneziawg-windows-client/releases/latest',
+    macos: 'https://apps.apple.com/app/amneziawg/id6478942365',
+    linux: 'https://github.com/amnezia-vpn/amneziawg-tools',
+    android: 'https://play.google.com/store/apps/details?id=org.amnezia.awg',
+    ios: 'https://apps.apple.com/app/amneziawg/id6478942365',
+    more: 'https://docs.amnezia.org/documentation/amnezia-wg/',
+  },
+  wireguard: {
+    windows: 'https://www.wireguard.com/install/',
+    macos: 'https://www.wireguard.com/install/',
+    linux: 'https://www.wireguard.com/install/',
+    android: 'https://play.google.com/store/apps/details?id=com.wireguard.android',
+    ios: 'https://apps.apple.com/app/wireguard/id1441195209',
+    more: 'https://www.wireguard.com/install/',
+  },
+};
+
 export const wizardMethods = {
 wizardVPNPickPort() {
       const usedPorts = new Set((this.tunnelInterfaces || []).map(i => i.listenPort));
@@ -118,6 +148,40 @@ wizardVPNDownload() {
         name: this.wizardVPN.peerName || 'My Device',
         interfaceId: this.wizardVPN.ifaceId,
       });
+    },
+
+// OS of the browser that opened the panel, used to put its app link first.
+wizardClientOS() {
+      const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+      if (/android/i.test(ua)) return 'android';            // before linux: Android UAs contain "Linux"
+      if (/iphone|ipad|ipod/i.test(ua)) return 'ios';       // before macos: iOS UAs contain "Mac OS X"
+      if (/windows/i.test(ua)) return 'windows';
+      if (/macintosh|mac os x/i.test(ua)) return 'macos';
+      if (/linux|x11|cros/i.test(ua)) return 'linux';
+      return '';
+    },
+
+// Client app links for the success screen: AmneziaWG apps for AWG
+// interfaces (a stock WireGuard app cannot connect to them), WireGuard
+// apps otherwise. The current device's link comes first.
+wizardClientApps() {
+      const links = this.wizardVPN.protocol === 'amneziawg'
+        ? WIZARD_CLIENT_APPS.amneziawg
+        : WIZARD_CLIENT_APPS.wireguard;
+      const current = this.wizardClientOS();
+      const apps = WIZARD_CLIENT_OS.map(o => ({
+        os: o.os,
+        label: o.label,
+        url: links[o.os],
+        current: o.os === current,
+      }));
+      return apps.filter(a => a.current).concat(apps.filter(a => !a.current));
+    },
+
+wizardClientAppsMoreUrl() {
+      return this.wizardVPN.protocol === 'amneziawg'
+        ? WIZARD_CLIENT_APPS.amneziawg.more
+        : WIZARD_CLIENT_APPS.wireguard.more;
     },
 
     // ── Wizard: Cascade via WireGuard Uplink ─────────────────────────────────
