@@ -37,6 +37,7 @@ The minified source files retain the notices supplied by their authors.
 | Component | Bundled version | Copyright or project | License |
 | --- | --- | --- | --- |
 | ApexCharts | 3.49.1 | Copyright (c) 2018-2024 ApexCharts | MIT license supplied with this version |
+| GridStack.js | 10.3.1 (`gridstack-all.js`, `gridstack.min.css`, `gridstack-extra.min.css`) | Copyright (c) 2019-2023 Alain Dumesny; v0.4.0 and older (c) 2014-2018 Pavel Reznikov, Dylan Weiss | MIT |
 | Vue-ApexCharts | 1.6.2 | ApexCharts | MIT |
 | Marked | vendored build | Copyright (c) 2011-2025 Christopher Jeffrey and MarkedJS | MIT |
 | SortableJS | 1.15.2 | SortableJS contributors | MIT |

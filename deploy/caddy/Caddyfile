@@ -68,6 +68,24 @@ https://:443 {
     #   /ADMIN_PATH/api/...   → /api/...    → Cascade API handler
     #
     handle_path /{$ADMIN_PATH}/* {
+        # Compress the panel (index.html, JS, CSS, JSON) — about 2 MB per open
+        # without it. Types are listed explicitly: the default `text/*` would
+        # also catch the text/event-stream diagnostics output (ping,
+        # traceroute, tcpdump), which must stay unbuffered.
+        encode {
+            zstd
+            gzip
+            # One value per line: values of the same header are OR-ed.
+            match {
+                header Content-Type text/html*
+                header Content-Type text/css*
+                header Content-Type text/javascript*
+                header Content-Type application/javascript*
+                header Content-Type application/json*
+                header Content-Type application/manifest+json*
+                header Content-Type image/svg+xml*
+            }
+        }
         reverse_proxy 127.0.0.1:{$CASCADE_PORT}
     }
 

@@ -1527,6 +1527,28 @@ func TestFrontendDomainAliasUI(t *testing.T) {
 	}
 }
 
+// The panel must render without third-party hosts: CDNs can be slow or
+// blocked, and stylesheets in <head> hold up the first paint until loaded.
+func TestFrontendLoadsNoAssetsFromExternalHosts(t *testing.T) {
+	indexContent, err := renderedIndex(t)
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	external := regexp.MustCompile(`<(?:script|link)\b[^>]*\b(?:src|href)="(?:https?:)?//[^"]+"`)
+	if found := external.FindAllString(string(indexContent), -1); len(found) > 0 {
+		t.Errorf("index.html loads assets from external hosts: %q", found)
+	}
+	for _, asset := range []string{
+		"www/js/vendor/gridstack-all.js",
+		"www/css/gridstack.min.css",
+		"www/css/gridstack-extra.min.css",
+	} {
+		if _, err := assets.ReadFile(asset); err != nil {
+			t.Errorf("vendored GridStack asset missing: %s", asset)
+		}
+	}
+}
+
 // The Simple VPN success screen links to client apps that can open its QR
 // code, and AWG interfaces get AmneziaWG apps rather than stock WireGuard.
 func TestFrontendWizardSuccessLinksClientApps(t *testing.T) {
